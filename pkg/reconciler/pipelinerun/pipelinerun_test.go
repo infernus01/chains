@@ -126,13 +126,13 @@ func TestReconciler_handlePipelineRun(t *testing.T) {
 				},
 				Status: v1.PipelineRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded, Status: corev1.ConditionTrue}},
 					}},
 			},
 			shouldSign: false,
 		},
 		{
-			name: "complete, not already signed",
+			name: "complete and successful, not already signed",
 			pr: &v1.PipelineRun{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:        "pipelinerun",
@@ -141,10 +141,31 @@ func TestReconciler_handlePipelineRun(t *testing.T) {
 				},
 				Status: v1.PipelineRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{
+							Type:   apis.ConditionSucceeded,
+							Status: corev1.ConditionTrue,
+						}},
 					}},
 			},
 			shouldSign: true,
+		},
+		{
+			name: "complete but failed, not already signed",
+			pr: &v1.PipelineRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "pipelinerun",
+					Namespace:   "default",
+					Annotations: map[string]string{},
+				},
+				Status: v1.PipelineRunStatus{
+					Status: duckv1.Status{
+						Conditions: []apis.Condition{{
+							Type:   apis.ConditionSucceeded,
+							Status: corev1.ConditionFalse,
+						}},
+					}},
+			},
+			shouldSign: false,
 		},
 		{
 			name: "not complete, not already signed",
@@ -171,7 +192,7 @@ func TestReconciler_handlePipelineRun(t *testing.T) {
 				},
 				Status: v1.PipelineRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded, Status: corev1.ConditionTrue}},
 					},
 				},
 			},
@@ -204,7 +225,7 @@ func TestReconciler_handlePipelineRun(t *testing.T) {
 				},
 				Status: v1.PipelineRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded, Status: corev1.ConditionTrue}},
 					},
 					PipelineRunStatusFields: v1.PipelineRunStatusFields{
 						ChildReferences: []v1.ChildStatusReference{
@@ -245,7 +266,7 @@ func TestReconciler_handlePipelineRun(t *testing.T) {
 				},
 				Status: v1.PipelineRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded, Status: corev1.ConditionTrue}},
 					},
 					PipelineRunStatusFields: v1.PipelineRunStatusFields{
 						ChildReferences: []v1.ChildStatusReference{
@@ -278,7 +299,7 @@ func TestReconciler_handlePipelineRun(t *testing.T) {
 				},
 				Status: v1.PipelineRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded, Status: corev1.ConditionTrue}},
 					},
 					PipelineRunStatusFields: v1.PipelineRunStatusFields{
 						ChildReferences: []v1.ChildStatusReference{
@@ -362,7 +383,7 @@ func TestFinalizeKind_SSAMigration(t *testing.T) {
 				},
 				Status: v1.PipelineRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded, Status: corev1.ConditionTrue}},
 					},
 				},
 			},
@@ -385,7 +406,7 @@ func TestFinalizeKind_SSAMigration(t *testing.T) {
 				},
 				Status: v1.PipelineRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded, Status: corev1.ConditionTrue}},
 					},
 				},
 			},
@@ -409,7 +430,7 @@ func TestFinalizeKind_SSAMigration(t *testing.T) {
 				},
 				Status: v1.PipelineRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded, Status: corev1.ConditionTrue}},
 					},
 				},
 			},
@@ -427,7 +448,7 @@ func TestFinalizeKind_SSAMigration(t *testing.T) {
 				},
 				Status: v1.PipelineRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded, Status: corev1.ConditionTrue}},
 					},
 				},
 			},

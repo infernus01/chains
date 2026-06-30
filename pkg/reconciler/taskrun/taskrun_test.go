@@ -127,17 +127,40 @@ func TestReconciler_handleTaskRun(t *testing.T) {
 			shouldSign: false,
 		},
 		{
-			name: "complete, not already signed",
+			name: "complete and successful, not already signed",
 			tr: &v1.TaskRun{
 				ObjectMeta: metav1.ObjectMeta{
+					Name:        "taskrun",
+					Namespace:   "default",
 					Annotations: map[string]string{},
 				},
 				Status: v1.TaskRunStatus{
 					Status: duckv1.Status{
-						Conditions: []apis.Condition{{Type: apis.ConditionSucceeded}},
+						Conditions: []apis.Condition{{
+							Type:   apis.ConditionSucceeded,
+							Status: corev1.ConditionTrue,
+						}},
 					}},
 			},
 			shouldSign: true,
+		},
+		{
+			name: "complete but failed, not already signed",
+			tr: &v1.TaskRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "taskrun",
+					Namespace:   "default",
+					Annotations: map[string]string{},
+				},
+				Status: v1.TaskRunStatus{
+					Status: duckv1.Status{
+						Conditions: []apis.Condition{{
+							Type:   apis.ConditionSucceeded,
+							Status: corev1.ConditionFalse,
+						}},
+					}},
+			},
+			shouldSign: false,
 		},
 		{
 			name: "not complete, not already signed",

@@ -42,6 +42,11 @@ func TestReconciled(t *testing.T) {
 			annotation: "failed",
 		},
 		{
+			name:       "signed skipped",
+			want:       true,
+			annotation: "skipped",
+		},
+		{
 			name:       "signed with other string",
 			want:       false,
 			annotation: "baz",
@@ -60,6 +65,11 @@ func TestReconciled(t *testing.T) {
 			name:             "latest signed failed",
 			want:             true,
 			latestAnnotation: "failed",
+		},
+		{
+			name:             "latest signed skipped",
+			want:             true,
+			latestAnnotation: "skipped",
 		},
 		{
 			name:             "latest signed with other string",
@@ -258,6 +268,60 @@ func TestMarkFailed(t *testing.T) {
 
 			if failed.GetAnnotations()[ChainsAnnotation] != "failed" {
 				t.Errorf("Object not marked as 'failed', was: '%s'", failed.GetAnnotations()[ChainsAnnotation])
+			}
+		})
+	}
+}
+
+func TestMarkSkipped(t *testing.T) {
+	tests := []struct {
+		name   string
+		object objects.TektonObject
+	}{
+		{
+			name: "mark taskrun skipped",
+			object: objects.NewTaskRunObjectV1(&v1.TaskRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "my-taskrun",
+				},
+				Spec: v1.TaskRunSpec{
+					TaskRef: &v1.TaskRef{
+						Name: "foo",
+					},
+				},
+			}),
+		},
+		{
+			name: "mark pipelinerun skipped",
+			object: objects.NewPipelineRunObjectV1(&v1.PipelineRun{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "my-pipelinerun",
+				},
+				Spec: v1.PipelineRunSpec{
+					PipelineRef: &v1.PipelineRef{
+						Name: "foo",
+					},
+				},
+			}),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, _ := rtesting.SetupFakeContext(t)
+			c := fakepipelineclient.Get(ctx)
+			tekton.CreateObject(t, ctx, c, tt.object)
+
+			if err := MarkSkipped(ctx, tt.object, c); err != nil {
+				t.Errorf("MarkSkipped() error = %v", err)
+			}
+
+			skipped, err := tekton.GetObject(t, ctx, c, tt.object)
+			if err != nil {
+				t.Errorf("Get() error = %v", err)
+			}
+
+			if skipped.GetAnnotations()[ChainsAnnotation] != "skipped" {
+				t.Errorf("Object not marked as 'skipped', was: '%s'", skipped.GetAnnotations()[ChainsAnnotation])
 			}
 		})
 	}

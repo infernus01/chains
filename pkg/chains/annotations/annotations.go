@@ -60,7 +60,7 @@ func reconciledFromAnnotations(annotations map[string]string) bool {
 	if !ok {
 		return false
 	}
-	return val == "true" || val == "failed"
+	return val == "true" || val == "failed" || val == "skipped"
 }
 
 // mergeAnnotations creates a new map with existing annotations plus a new key-value pair
@@ -87,6 +87,11 @@ func MarkSigned(ctx context.Context, obj objects.TektonObject, ps versioned.Inte
 
 func MarkFailed(ctx context.Context, obj objects.TektonObject, ps versioned.Interface, annotations map[string]string) error {
 	return AddAnnotations(ctx, obj, ps, mergeAnnotations(annotations, ChainsAnnotation, "failed"))
+}
+
+// MarkSkipped marks a Tekton object as skipped (not signed because the run was not successful).
+func MarkSkipped(ctx context.Context, obj objects.TektonObject, ps versioned.Interface) error {
+	return AddAnnotations(ctx, obj, ps, map[string]string{ChainsAnnotation: "skipped"})
 }
 
 func RetryAvailable(obj objects.TektonObject) bool {

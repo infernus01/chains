@@ -114,6 +114,15 @@ func (r *Reconciler) FinalizeKind(ctx context.Context, tr *v1.TaskRun) (result p
 		return nil
 	}
 
+	if !obj.IsSuccessful() {
+		logging.FromContext(ctx).Infof("taskrun %s/%s is not successful, skipping signing", tr.Namespace, tr.Name)
+		if err := annotations.MarkSkipped(ctx, obj, r.Pipelineclientset); err != nil {
+			return err
+		}
+		removeOldFinalizerIfExists(tr)
+		return nil
+	}
+
 	if err := r.TaskRunSigner.Sign(ctx, obj); err != nil {
 		return err
 	}

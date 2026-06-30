@@ -107,6 +107,14 @@ func (r *Reconciler) FinalizeKind(ctx context.Context, pr *v1.PipelineRun) (resu
 		return nil
 	}
 
+	if !pro.IsSuccessful() {
+		logging.FromContext(ctx).Infof("pipelinerun is not successful, skipping signing")
+		if err := annotations.MarkSkipped(ctx, pro, r.Pipelineclientset); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	// Get TaskRun names depending on whether embeddedstatus feature is set or not
 	var trs []string
 	for _, cr := range pr.Status.ChildReferences {
