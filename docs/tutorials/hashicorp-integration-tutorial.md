@@ -9,9 +9,8 @@
         * This provider also requires that the `transit` secret engine is enabled
         * If not done, you can login into the vault provider and run the following command
 
-          ```bash=
-          $ vault secrets enable transit
-          Success! Enabled the transit secrets engine at: transit/
+          ```shell
+          vault secrets enable transit
           ```
     * You can get more info about `transit` secrets [here](https://developer.hashicorp.com/vault/docs/secrets/transit#setup)
 
@@ -24,27 +23,27 @@
 
 This provider requires that the standard Vault environment variables (`$VAULT_ADDR, $VAULT_TOKEN`) are set correctly.
 
-```bash=
-$ export VAULT_ADDR=http://localhost:8200
-$ export VAULT_TOKEN=testtoken
-$ vault secrets enable transit  ---> Ignore if you have already done
+```shell
+export VAULT_ADDR=http://localhost:8200
+export VAULT_TOKEN=testtoken
+vault secrets enable transit  ---> Ignore if you have already done
 ```
 
 Now run the following command
 
-```bash=
-$ cosign generate-key-pair --kms hashivault://$keyname
+```shell
+cosign generate-key-pair --kms hashivault://$keyname
 ```
 
-**NOTE**:- If you enabled transit secret engine at different path with the use of -path flag (i.e., $ vault secrets enable -path="someotherpath" transit), you can use TRANSIT_SECRET_ENGINE_PATH environment variable to specify this path while generating a key pair like the following:
+**NOTE**: If you enabled transit secret engine at different path with the use of -path flag (i.e., `vault secrets enable -path="someotherpath" transit`), you can use `TRANSIT_SECRET_ENGINE_PATH` environment variable to specify this path while generating a key pair like the following:
 
 In that case the command will be
 
-```bash=
-$ TRANSIT_SECRET_ENGINE_PATH="someotherpath" cosign generate-key-pair --kms hashivault://$keyname
+```shell
+TRANSIT_SECRET_ENGINE_PATH="someotherpath" cosign generate-key-pair --kms hashivault://$keyname
 ```
 
-### Step 2: Set up Authenticaion
+### Step 2: Set up Authentication
 
 There are two forms of authentication that need to be set up:
 
@@ -53,13 +52,51 @@ There are two forms of authentication that need to be set up:
 
 To set up auth for the Kaniko Task, you'll need a Kubernetes secret of a docker config.json file which contains the required auth. You can create the secret by running:
 
-```bash=
+```shell
 kubectl create secret generic [DOCKERCONFIG_SECRET_NAME] --from-file [PATH TO CONFIG.JSON]
 ```
 
 ### Step 3: Configuring Tekton Chains
 
 You'll need to make these changes to the Tekton Chains configMap i.e. `chains-config` configMap:
+
+#### Option A: OIDC/JWT Authentication (Recommended)
+
+> [!IMPORTANT]
+> This method requires Tekton Chains **v0.28.0 or later**. Earlier versions only support OIDC/JWT authentication via SPIRE.
+
+With OIDC/JWT authentication, the Chains controller exchanges its Kubernetes service account token for a short-lived Vault token at runtime. This avoids storing any static credentials in the ConfigMap.
+
+This method requires no changes to the Chains controller deployment because the service account token is already auto-mounted at `/var/run/secrets/kubernetes.io/serviceaccount/token`.
+
+> [!NOTE]
+> If you are using the Tekton Operator to manage your installation (via the `TektonConfig` custom resource), this is the only secure authentication method that works without Operator-side changes. The Operator reconciles and overwrites manual modifications to the Chains controller deployment spec, which means volume mounts required by `token-path` or SPIRE-based methods will be reverted.
+
+**Vault-side setup:** You must enable the [JWT auth method](https://developer.hashicorp.com/vault/docs/auth/jwt) in Vault and configure a role that accepts the Chains controller's service account identity. The `signers.kms.auth.oidc.path` value (e.g., `jwt`) must match the path where the JWT auth method is mounted in Vault, and `signers.kms.auth.oidc.role` must match the role name.
+
+Configure the `chains-config` ConfigMap:
+
+```shell
+kubectl patch configmap chains-config -n tekton-chains -p='{"data":{
+  "artifacts.taskrun.format": "slsa/v1",
+  "artifacts.taskrun.storage": "oci",
+  "artifacts.taskrun.signer": "kms",
+  "artifacts.pipelinerun.signer": "kms",
+  "artifacts.oci.signer": "kms",
+  "transparency.enabled": "true",
+  "signers.kms.kmsref": "hashivault://<keyname>",
+  "signers.kms.auth.address": "<VAULT_ADDR>",
+  "signers.kms.auth.oidc.path": "jwt",
+  "signers.kms.auth.oidc.role": "<VAULT_ROLE>"
+}}'
+```
+
+The `signers.kms.auth.oidc.token-path` config key defaults to `/var/run/secrets/kubernetes.io/serviceaccount/token` and does not need to be set unless you are using a custom projected service account token.
+
+#### Option B: Static Token (Not Recommended for Production)
+
+> [!WARNING]
+> Storing the Vault token directly in the `chains-config` ConfigMap is insecure. ConfigMaps are not encrypted at rest by default, and the token is visible to anyone with read access to ConfigMaps in the namespace. Use this method only for local development or testing.
 
 ```yaml
 * artifacts.taskrun.format: slsa/v1
@@ -73,18 +110,20 @@ You'll need to make these changes to the Tekton Chains configMap i.e. `chains-co
 * signers.kms.auth.token: <VAULT_TOKEN>
 ```
 
+For a more secure variant of static token authentication, you can use `signers.kms.auth.token-path` to read the token from a mounted Kubernetes Secret instead. See the [Signing](../signing.md#authentication) documentation for details. Note that `token-path` requires mounting a volume into the Chains controller deployment.
+
 ### Step 4: Start the Kaniko Task
 
 * First apply the
 
-```bash
+```shell
 kubectl apply -f examples/kaniko/kaniko.yaml
 ```
 Substitute with the URI or file path to your Kaniko task.
 
-* Set the following enviornment variables:
+* Set the following environment variables:
 
-```bash=
+```shell
 export REGISTRY=<url_of_registry>
 export DOCKERCONFIG_SECRET_NAME=<name_of_the_secret_in_docker_config_json>
 ```
@@ -94,13 +133,13 @@ Substitute with the name of the secret in the docker config.json file.
 
 * Start the Kaniko Task
 
-```bash=
+```shell
 tkn task start --param IMAGE=$REGISTRY/kaniko-chains --use-param-defaults --workspace name=source,emptyDir="" --workspace name=dockerconfig,secret=$DOCKERCONFIG_SECRET_NAME kaniko-chains
 ```
 
 * Wait for a minute to allow Tekton Chains to generate the provenance and sign it, and then check the availability of the chains.tekton.dev/signed=true annotation on the task run.
 
-```bash=
+```shell
 kubectl get tr <task_run_name> -o json | jq -r .metadata.annotations
 {
 	"chains.tekton.dev/signed": "true",
@@ -110,14 +149,14 @@ kubectl get tr <task_run_name> -o json | jq -r .metadata.annotations
 
 ### Step 5: Verify the image and the attestation
 
-```bash=
+```shell
 cosign verify --key cosign.pub $REGISTRY/kaniko-chains
 cosign verify-attestation --key cosign.pub --type slsaprovenance $REGISTRY/kaniko-chains
 ```
 
 or you can use the hashivault://$keyname as key as well
 
-```bash=
+```shell
 cosign verify --key hashivault://testkey $REGISTRY/kaniko-chains
 cosign verify-attestation --key hashivault://testkey --type slsaprovenance $REGISTRY/kaniko-chains
 ```
@@ -125,7 +164,7 @@ cosign verify-attestation --key hashivault://testkey --type slsaprovenance $REGI
 
 The output would be like this
 
-```bash=
+```shell
 Verification for index.docker.io/$REGISTRY/kaniko-chains:latest --
 The following checks were performed on each of these signatures:
   - The cosign claims were validated

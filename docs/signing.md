@@ -76,6 +76,8 @@ Most likely, you will need to set up some additional authentication so that the 
 
 For Vault, if you use Token-based authentication, store the token as a secret. Mount this secret to a specific path within the tekton-chains-controller container. Specify the mounted path as the value for the `chains-config` config map key `signers.kms.auth.token-path`. This approach can also be applied to other KMS providers that support token-based authentication. Note that the existing configuration option `signers.kms.auth.token` will still work. If both values are set, `signers.kms.auth.token-path` will take precedence.
 
+Starting from Chains v0.28.0, Vault also supports [JWT authentication](https://developer.hashicorp.com/vault/docs/auth/jwt), where the Chains controller exchanges its Kubernetes service account token for a Vault token at runtime. To use this method, set `signers.kms.auth.oidc.path` to the Vault auth method mount path (e.g., `jwt`) and `signers.kms.auth.oidc.role` to the Vault role name. The `signers.kms.auth.oidc.token-path` config key is optional and defaults to `/var/run/secrets/kubernetes.io/serviceaccount/token`. This method requires no changes to the Chains controller deployment because the service account token is already auto-mounted by Kubernetes. OIDC/JWT is used only when no static token (`signers.kms.auth.token` or `signers.kms.auth.token-path`) is configured.
+
 For GCP/GKE, we suggest enabling [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity), and giving your service account `Cloud KMS Admin` permissions.
 Other Service Account techniques would work as well.
 

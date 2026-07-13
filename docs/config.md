@@ -189,6 +189,14 @@ chains.tekton.dev/transparency-upload: "true"
 > [!IMPORTANT]
 > To project the latest token values without needing to recreate the pod, avoid using `subPath` in volume mount.
 
+> NOTE:
+>
+> When multiple authentication methods are configured, the token resolution priority is:
+> 1. `signers.kms.auth.token-path` (if set, the token is read from this file)
+> 2. `signers.kms.auth.token` (if set and `token-path` is not)
+> 3. SPIRE SVID (if `signers.kms.auth.spire.sock` is set and no static token is present)
+> 4. OIDC/JWT (if `signers.kms.auth.oidc.path` and `signers.kms.auth.oidc.role` are both set and no other token source is configured)
+
 ### Visual Guide: ConfigMap Configuration Options
 Refer the diagram below to explore the pictorial representation of signing and storage configuration options, and their usage in the context of chains artifacts.
 
