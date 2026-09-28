@@ -33,6 +33,48 @@ Chains also has the following requirements:
 * The private key to be stored as an unencrypted PKCS8 PEM file (`BEGIN PRIVATE KEY`)
 * The key is of type `ed25519` or `ecdsa`
 
+### Generate x509 Keypair
+
+To generate an **ECDSA** keypair:
+
+```shell
+# Generate ECDSA private key
+openssl ecparam -genkey -name prime256v1 -out ec_private.pem
+
+# Convert to PKCS8 format
+openssl pkcs8 -topk8 -nocrypt -in ec_private.pem -out x509.pem
+
+# Create Kubernetes secret
+kubectl create secret generic signing-secrets -n tekton-chains --from-file=x509.pem
+```
+
+To generate an **Ed25519** keypair:
+
+```shell
+# Generate Ed25519 private key (already in PKCS8 format)
+openssl genpkey -algorithm ED25519 -out x509.pem
+
+# Create Kubernetes secret
+kubectl create secret generic signing-secrets -n tekton-chains --from-file=x509.pem
+```
+
+### Ed25519 Support and Limitations
+
+Ed25519 keys are fully supported for SLSA attestations and TaskRun/PipelineRun signing. However, there is a known limitation when using ed25519 with transparency enabled:
+
+**Supported configurations:**
+- Ed25519 with SLSA attestations (`artifacts.taskrun.format: slsa/v2alpha4`) and `transparency.enabled: true`
+- Ed25519 with any format when `transparency.enabled: false`
+
+**Not supported:**
+- Ed25519 with OCI image signing (`artifacts.oci.format: simplesigning`) and `transparency.enabled: true`
+
+When transparency is enabled for OCI image signatures, Rekor's hashedrekord entry type requires ed25519ph signatures with SHA-512 hashing, which is not currently supported. If you need transparency for OCI image signatures, use ECDSA keys instead.
+
+**Workaround:** If using ed25519 keys, either:
+1. Disable transparency for OCI artifacts: `artifacts.oci.storage: tekton` with `transparency.enabled: false`
+2. Use ECDSA keys for OCI signing when transparency is required
+
 ## Cosign
 
 For cosign, Chains expects the encrypted private key to be stored in a secret called `signing-secrets` with the following structure:

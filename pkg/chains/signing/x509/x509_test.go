@@ -51,6 +51,37 @@ const ed25519Priv = `-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIGQn0bJwshjwuVdnd/FylMk3Gvb89aGgH49bQpgzCY0n
 -----END PRIVATE KEY-----`
 
+// Generated with:
+// openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 | openssl pkcs8 -topk8 -nocrypt
+const rsaPriv = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC4rsYCoAGnk0b6
+3Ztejg0ZRKQGF/OzYnCjq9qxNeI5os6tV2i0KW6gb2lZACDsRuh9MIPNg1TeQqI0
+mpqkVJf6WanM161qRhkKs0vDKqRE0wVxFtuXUC1Y3TPNXFS+uW0u9/oCfIGeOXON
+AZZMpH59CWkSTr1+BSC8fDposmsfYsuRg4hX7d5SieRnZzLSTqC1NVR7VFNSgGhH
+OicHyNX8rdU7Gqcvu4+Srmg7R5IuJKW8G9QplBoS3OD2kLyTnod0DW1TLMG30u/y
+c0gmCbvF3JALpLgbwRYGNZeTyN3eQEwJ+E3EAMhH2E0gSAvqK12cyHliu0V3vCFN
+b26KgrTbAgMBAAECggEAAn3XzbTt63OuYKJjvw395D+Lp59kGiFJBr7sojkUC8Cu
+tsz37Hz7RpkqMS6yGFiejgMntrqVBwicGpyUBdqJpbGBpnH/H3DBqWYg2V8LvKKi
+L1Pmc4Smj/faro8Wf5o4fF/mahPW8H+y7OM+wrBHb+q+wFClTXwb5HRtRKNU6aVM
+JvG+Gt1MHp/JrgTiR5r1hXcb7jnlQUEcjjmyMlTkI17jvJhZfJ5V1J4kBBv2CmE0
+b86wNQe6OioS5jj0+vZtowamq/Looe341Y6RtSOQAsT3K410EaRpPDbAmgRy+Zfx
+Ss3Y1dR3/hPGZOmtyKIo0/RPlP9Yjp0qTvPplfeL1QKBgQD4QdqX1ZupczmalK4Q
+/fi6eLHKkcFoGQLz4Cb6LbRF2c4oQ4JALBJ5Tz9W0p18SFdPM0WloVfGb+jfZp9o
+sIb0eaBGqdK1yuWABBB8wERrjYKarSOBmAM1meQC6I27JE+BuUrFxLURn9c0xJmQ
+Z8VlE0Wd6OlX5X0w46+L06JbpQKBgQC+cVM40Hn5cXXv1SpytdEPqYkR8k92QYoO
+b5d37kY6QrcDQQQ7TaQI6PYlpwSq6UD3FHRQS+8jdbKyYmHNhDLDDggX3bwg0a49
+1S0CNGw8rTwzqbNdSPij35tSVbS+b/Bv9MHnQJhZBo68YBmaWe18Y4qdtwereMAY
+et1oRk3mfwKBgADeEgp3x5x295uPq3AJwyW7qDth+QAJHlaF0P0MzdV0pmDDo5/f
+x4y+9ySxhbVad1uifTrP7oOV/oVRUXtHKqGODz5P95mFBPpGiVw2O8b4bp1lv3sD
+cfds+zv7XgtqXBDC+fzo7A0Mtu7LRRIZGrp4r8SWfMI+3goesY1Whvm1AoGBALN7
+UGiaKmqJoRHwP3oumqJ9MD6mtHcKG5exWfpgqPUdjSfW7asKaE8xZ1JjDwYYoO57
+64cFmZI8ybZO/EfZkJG+NqhvhG8VznZd43ZRe7TPu44hIHcJX7Pp+JNnTNmx29NX
+xCsy+KHmiT1GALs0h5qUob40EllrivdHTEWLBL33AoGAWso6XmLp2TIOSfNmpwAp
+EZhp1tzMcJRDWvZvl4Irljra5yu98MkC5yDNG8wKVzuoFpdmKY+0LNo0XeL3rxef
+qC64je+tMtbzD6b/+KUjx/V3F6mXejr7y5x4PIyuCICp+6uSGZTWDoevShLi8JUX
+noJNVOIpK0BnupWNKdLe4Dg=
+-----END PRIVATE KEY-----`
+
 // Generated with RS256 algorithm (required for cosign v2.6.0+)
 // openssl genrsa -out private.pem 2048
 // python3 -c "import jwt; import time; private_key = open('/tmp/private.pem').read(); payload = {'iat': int(time.time()), 'exp': int(time.time()) + 3600 * 24 * 365 * 10, 'iss': 'user123'}; print(jwt.encode(payload, private_key, algorithm='RS256'))"
@@ -218,7 +249,6 @@ func TestSigner_SignECDSA(t *testing.T) {
 }
 
 func TestSigner_SignED25519(t *testing.T) {
-	t.Skip("skip test until ed25519 signing is implemented")
 	ctx := logtesting.TestContextWithLogger(t)
 	d := t.TempDir()
 	p := filepath.Join(d, "x509.pem")
@@ -276,8 +306,8 @@ func TestNewSignerUnsupportedX509KeyType(t *testing.T) {
 	ctx := logtesting.TestContextWithLogger(t)
 	d := t.TempDir()
 	p := filepath.Join(d, "x509.pem")
-	// ed25519 keys are a valid PKCS8 key but not supported by the x509 signer.
-	if err := os.WriteFile(p, []byte(ed25519Priv), 0644); err != nil {
+	// RSA keys are a valid PKCS8 key but not supported by the x509 signer.
+	if err := os.WriteFile(p, []byte(rsaPriv), 0644); err != nil {
 		t.Fatal(err)
 	}
 
